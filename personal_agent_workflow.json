@@ -17,7 +17,7 @@
         "agent": "toolsAgent",
         "tools": [],
         "options": {
-          "systemMessage": "You are a helpful AI assistant. When using the Wikipedia tool, provide only a simple search query string. Do not wrap the query in JSON or objects.",
+          "systemMessage": "You are a helpful AI assistant. When using the Google Search tool, provide a clear search query to find relevant information. Keep queries concise and direct.",
           "maxIterations": 5,
           "returnIntermediateSteps": false
         }
@@ -61,11 +61,11 @@
         "options": {
           "returnDirect": true
         },
-        "description": "Search Wikipedia for information. Input should be a search query string."
+        "description": "Search the web using Google. Provide a search query to find relevant information."
       },
       "id": "2db4ed90-1c5c-4f74-a0ab-5c1cf4c43a41",
-      "name": "Wikipedia",
-      "type": "@n8n/n8n-nodes-langchain.toolWikipedia",
+      "name": "Google Search",
+      "type": "@n8n/n8n-nodes-langchain.toolGoogleSearch",
       "typeVersion": 1,
       "position": [
         880,
@@ -107,7 +107,7 @@
         ]
       ]
     },
-    "Wikipedia": {
+    "Google Search": {
       "ai_tool": [
         [
           {
