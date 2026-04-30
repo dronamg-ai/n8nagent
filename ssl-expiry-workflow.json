@@ -1,0 +1,244 @@
+{
+  "name": "SSL Certificate Expiry Checker",
+  "description": "Checks SSL expiry dates for multiple websites and sends notifications",
+  "nodes": [
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "websites",
+              "value": "[\n  \"example.com\",\n  \"google.com\",\n  \"github.com\"\n]"
+            },
+            {
+              "name": "warningDays",
+              "value": "30"
+            }
+          ]
+        }
+      },
+      "id": "uuid-config-1",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "expression": "{{ JSON.parse($node[\"Config\"].json.websites) }}"
+      },
+      "id": "uuid-split-1",
+      "name": "Split Websites",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sslmate.com/v1/certificates",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParametersJson": "{\n  \"domain\": \"{{ $node[\\\"Split Websites\\\"].json.value }}\"\n}"
+      },
+      "id": "uuid-ssl-check-1",
+      "name": "Check SSL Expiry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "{{ $node[\"Check SSL Expiry\"].json.error }}",
+              "operation": "isEmpty"
+            }
+          ]
+        }
+      },
+      "id": "uuid-if-1",
+      "name": "Check for Errors",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const expiryDate = new Date($node[\"Check SSL Expiry\"].json.expiry_date);\nconst today = new Date();\nconst daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));\nconst warningDays = parseInt($node[\"Config\"].json.warningDays);\n\nreturn {\n  domain: $node[\"Split Websites\"].json.value,\n  expiryDate: expiryDate.toISOString().split('T')[0],\n  daysUntilExpiry: daysUntilExpiry,\n  isExpiringSoon: daysUntilExpiry <= warningDays,\n  status: daysUntilExpiry > warningDays ? 'OK' : 'WARNING'\n};"
+      },
+      "id": "uuid-process-1",
+      "name": "Process Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1050,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "{{ $node[\"Process Results\"].json.isExpiringSoon }}",
+              "operation": "equals",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "uuid-expiring-check-1",
+      "name": "Is Expiring Soon?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "#ssl-alerts",
+        "text": "🚨 SSL Certificate Expiring Soon!\n\nDomain: {{ $node[\"Process Results\"].json.domain }}\nExpiry Date: {{ $node[\"Process Results\"].json.expiryDate }}\nDays Until Expiry: {{ $node[\"Process Results\"].json.daysUntilExpiry }}"
+      },
+      "id": "uuid-slack-1",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        1450,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "root": "data"
+      },
+      "id": "uuid-merge-1",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        1450,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Split Websites",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Websites": {
+      "main": [
+        [
+          {
+            "node": "Check SSL Expiry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check SSL Expiry": {
+      "main": [
+        [
+          {
+            "node": "Check for Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Errors": {
+      "main": [
+        [
+          {
+            "node": "Process Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Results": {
+      "main": [
+        [
+          {
+            "node": "Is Expiring Soon?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Expiring Soon?": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Send Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    }
+  }
+}
